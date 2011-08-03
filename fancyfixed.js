@@ -24,10 +24,13 @@ var FancyFixed = (function() {
 	
 	var curPosition = 'static',
 		didScroll = false,
-		posY, el, elParentY;
+		posY, el, elParentY, elParentBottom;
 	
 	var handleScroll_top = function() {		
 		var scrollY = Math.max(0, window.getScroll().y - elParentY);
+
+		// TODO: handle element scrolling past bottom
+		// (this is done in the fixed case but not the couldContainFlash case)
 
 		// set the "top" property to scrollY, but use animation
 		new Fx.Tween(el, {
@@ -51,15 +54,19 @@ var FancyFixed = (function() {
 	};
 	
 	var handleScroll_fixed = function() {
-		var scrollY = window.getScroll().y;
-		
-		// TODO: put bottom limit on scrolling to prevent
-		// overlapping into the footer
+		var scrollY = window.getScroll().y,
+			height = el.offsetHeight;
+			bottomOfEl = scrollY+height;
 		
 		if (curPosition === 'fixed' && scrollY <= posY) {
 			curPosition = 'static';
 			el.setStyle('position', curPosition);
-		} else if (curPosition === 'static' && scrollY > posY) {
+		
+		} else if (curPosition === 'fixed' && bottomOfEl >= elParentBottom) {
+			curPosition = 'absolute';
+			el.setStyle('position', curPosition).setStyle('top', elParentBottom-height);
+			
+		} else if ((curPosition === 'static' && scrollY > posY) || (curPosition === 'absolute' && bottomOfEl < elParentBottom)) {			
 			curPosition = 'fixed';
 			el.setStyles({
 				'top': 0,
@@ -73,6 +80,10 @@ var FancyFixed = (function() {
 		init: function(theEl, couldContainFlash) {
 			el = $(theEl);
 			elParentY = el.getParent().getPosition().y;
+			// hack for now: 
+			// TODO: remove requirement for wrapper element. we're currently using 
+			// parent's parent to look for necessary height
+			elParentBottom = el.getParent().getParent().getCoordinates().bottom;
 			posY = el.getPosition().y;
 			
 			if (Browser.firefox && couldContainFlash) {
